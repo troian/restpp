@@ -381,7 +381,7 @@ http_response http_req_base::perform()
 		m_jwt->add_grant("timestamp", stamp.str());
 
 		std::string sign("Bearer ");
-		sign += m_jwt->encode();
+		sign += m_jwt->sign(m_key, m_len);
 		add_header("Authorization", sign);
 	}
 	http_response response = perform_request(m_data.get(), &m_content_type);
@@ -391,7 +391,9 @@ http_response http_req_base::perform()
 
 void http_req_base::jwt_set_key(const uint8_t *key, size_t len)
 {
-	m_jwt = std::make_shared<jwt>(JWT_ALG_HS256, key, len);
+	m_jwt = std::make_shared<jwt>(JWT_ALG_HS256);
+	m_key = key;
+	m_len = len;
 }
 
 void http_req_base::jwt_add_grant(const std::string &key, const std::string &value)

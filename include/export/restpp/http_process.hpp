@@ -89,7 +89,7 @@ typedef struct {
 } upload_object;
 
 /**
- *
+ * \brief
  */
 class http_request {
 private:
@@ -155,7 +155,6 @@ public:
 	http_response perform_request(const std::string *body, const std::string *content_type);
 
 private: // Static methods & callbacks
-	//
 	/**
 	 * \brief  CURL writedata callback function
 	 *
@@ -191,7 +190,6 @@ private: // Static methods & callbacks
 	 * \return     (size * nmemb)
 	 */
 	static size_t read_callback(void *ptr, size_t size, size_t nmemb, void *userdata);
-
 
 	/**
 	 * \brief  Trim from start
@@ -238,8 +236,31 @@ private: // Static methods & callbacks
 		return ltrim(rtrim(s));
 	}
 
+	/**
+	 * \brief
+	 *
+	 * \param[in]  handle: CURL handle
+	 * \param[in]
+	 * \param[in]
+	 * \param[in]
+	 * \param[in]
+	 *
+	 * \return
+	 */
 	static int curl_trace(CURL *handle, curl_infotype type, char *data, size_t size, void *userp);
-	static void curl_dump(const char *text, FILE *stream, unsigned char *ptr, size_t size, char nohex);
+
+	/**
+	 * \brief
+	 *
+	 * \param[in]
+	 * \param[in]
+	 * \param[in]
+	 * \param[in]
+	 * \param[in]
+	 *
+	 * \return None
+	 */
+	static void curl_dump(const char *text, FILE *stream, uint8_t *ptr, size_t size, char nohex);
 
 private:
 	CURL         *m_curl;
@@ -280,6 +301,11 @@ public:
 	 */
 	virtual void jwt_add_grant(const std::string &key, const std::string &value) final;
 
+	/**
+	 * \brief
+	 *
+	 * \return None
+	 */
 	virtual http_response perform() final;
 
 protected:
@@ -287,6 +313,9 @@ protected:
 
 	std::shared_ptr<std::string> m_data;
 	std::string                  m_content_type;
+
+	const uint8_t               *m_key;
+	size_t                       m_len;
 };
 
 /**
@@ -315,6 +344,11 @@ public:
 	void set_body();
 };
 
+/**
+ * \class
+ *
+ * \brief
+ */
 class http_req_put : public http_req_base {
 public:
 	explicit http_req_put(const std::string &host, const std::string &path, const std::string &data);
@@ -324,6 +358,11 @@ public:
 	void set_body();
 };
 
+/**
+ * \class
+ *
+ * \brief
+ */
 class http_req_del : public http_req_base {
 public:
 	explicit http_req_del(const std::string &host, const std::string &path);
