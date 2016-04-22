@@ -2,7 +2,7 @@
 // Created by Artur Troian on 4/15/16.
 //
 
-#include <simply/http_process.hpp>
+#include <restpp/http_process.hpp>
 #include <memory>
 #include <sstream>
 #include <iostream>
@@ -439,106 +439,3 @@ http_req_del::~http_req_del()
 
 }
 
-// --------------------------------------------------------------
-// Implemenation of class http_manager
-// --------------------------------------------------------------
-
-http_manager::http_manager(const std::string &host, const uint8_t *key, size_t key_size) :
-	  m_host(host)
-	, m_key_size(key_size)
-	, m_event_status(false)
-{
-	m_worker = std::thread(std::bind(&http_manager::worker, this));
-
-	m_key = new uint8_t[key_size];
-
-	std::memcpy(m_key, key, key_size);
-
-	m_dobj.file = stdout;
-}
-
-http_manager::~http_manager()
-{
-	event_base_loopbreak(m_base);
-	m_worker.join();
-}
-
-void http_manager::worker()
-{
-	struct timeval tv;
-
-	tv.tv_sec = 5;
-	tv.tv_usec = 0;
-
-	m_base = event_base_new();
-	m_ev = event_new(m_base, -1, EV_PERSIST, timer_handler, this);
-
-	event_add(m_ev, &tv);
-
-	event_base_dispatch(m_base);
-}
-
-void http_manager::timer_handler(evutil_socket_t fd, short what, void *arg)
-{
-	//std::cout << "ping\n";
-	http_manager *m = reinterpret_cast<http_manager *>(arg);
-
-	bool expected = true;
-
-	if (m->m_event_status.compare_exchange_strong(expected, false) == false) {
-		std::string path = "/CID/heartbeat";
-
-		http_req_get req(m->m_host, path);
-		req.jwt_set_key(m->m_key, m->m_key_size);
-		req.jwt_add_grant("iss", "troian");
-		req.set_debug(&m->m_dobj);
-		req.perform();
-	}
-}
-
-void http_manager::revoke_event()
-{
-	m_event_status.store(true);
-}
-
-http_response http_manager::get(const std::string &path)
-{
-	revoke_event();
-
-	http_req_get req(m_host, path);
-	req.jwt_set_key(m_key, m_key_size);
-	req.jwt_add_grant("iss", "troian");
-	req.set_debug(&m_dobj);
-	return req.perform();
-}
-
-http_response http_manager::post(const std::string &path, const std::string &data)
-{
-	revoke_event();
-
-	http_req_post req(m_host, path, data);
-	req.jwt_set_key(m_key, m_key_size);
-	req.jwt_add_grant("iss", "troian");
-	req.set_debug(&m_dobj);
-	return req.perform();
-}
-
-http_response http_manager::put(const std::string &path, const std::string &data)
-{
-	revoke_event();
-
-	http_req_put req(m_host, path, data);
-	req.jwt_set_key(m_key, m_key_size);
-	req.jwt_add_grant("iss", "troian");
-	return req.perform();
-}
-
-http_response http_manager::del(const std::string &path)
-{
-	revoke_event();
-
-	http_req_del req(m_host, path);
-	req.jwt_set_key(m_key, m_key_size);
-	req.jwt_add_grant("iss", "troian");
-	return req.perform();
-}
