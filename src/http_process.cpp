@@ -173,6 +173,7 @@ http_response http_request::perform_request(const std::string *body, const std::
 	// Set debug
 	if (m_debug) {
 		m_debug->file_lock.lock();
+		debug_cfg.stream = m_debug->file;
 		fprintf(m_debug->file, "== Request Start ==\n");
 		debug_cfg.trace_ascii = 1; /* enable ascii tracing */
 		curl_easy_setopt(m_curl, CURLOPT_DEBUGFUNCTION, curl_trace);
@@ -288,7 +289,7 @@ int http_request::curl_trace(CURL *handle, curl_infotype type, char *data, size_
 
 	switch (type) {
 	case CURLINFO_TEXT:
-		fprintf(stderr, "== Info: %s", data);
+		fprintf(config->stream, "== Info: %s", data);
 	default: /* in case a new one is introduced to shock us */
 		return 0;
 
@@ -312,7 +313,7 @@ int http_request::curl_trace(CURL *handle, curl_infotype type, char *data, size_
 		break;
 	}
 
-	curl_dump(text, stdout, (uint8_t *)data, size, config->trace_ascii);
+	curl_dump(text, config->stream, (uint8_t *)data, size, config->trace_ascii);
 	return 0;
 }
 
@@ -364,6 +365,7 @@ void http_request::curl_dump(const char *text, FILE *stream, uint8_t *ptr, size_
 
 http_req_base::http_req_base(const std::string &host, const std::string &path, HTTP_METHOD method) :
 	  http_request(host, path, method)
+	, m_jwt(nullptr)
 {
 
 }
@@ -376,14 +378,15 @@ http_req_base::~http_req_base()
 http_response http_req_base::perform()
 {
 	if (m_jwt) {
-		std::stringstream stamp;
-		stamp << std::time(nullptr);
-		m_jwt->add_grant("timestamp", stamp.str());
+//		std::stringstream stamp;
+//		stamp << std::time(nullptr);
+//		m_jwt->add_grant("timestamp", stamp.str());
 
 		std::string sign("Bearer ");
 		sign += m_jwt->sign(m_key, m_len);
 		add_header("Authorization", sign);
 	}
+
 	http_response response = perform_request(m_data.get(), &m_content_type);
 
 	return response;

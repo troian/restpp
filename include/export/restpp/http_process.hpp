@@ -95,6 +95,7 @@ class http_request {
 private:
 	typedef struct {
 		char trace_ascii; /* 1 or 0 */
+		FILE *stream;
 	} curl_debug_config;
 
 public:
