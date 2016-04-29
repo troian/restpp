@@ -26,6 +26,9 @@
 #include <string>
 #include <map>
 #include <memory>
+#include <mutex>
+#include <algorithm>
+#include <cstring>
 
 #include <curl/curl.h>
 
