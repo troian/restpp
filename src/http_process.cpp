@@ -378,12 +378,12 @@ http_req_base::~http_req_base()
 http_response http_req_base::perform()
 {
 	if (m_jwt) {
-//		std::stringstream stamp;
-//		stamp << std::time(nullptr);
-//		m_jwt->add_grant("timestamp", stamp.str());
+		std::stringstream stamp;
+		stamp << std::time(nullptr);
+		m_jwt->add_grant("timestamp", stamp.str());
 
 		std::string sign("Bearer ");
-		sign += m_jwt->sign(m_key, m_len);
+		m_jwt->sign(sign, m_key, m_len);
 		add_header("Authorization", sign);
 	}
 
