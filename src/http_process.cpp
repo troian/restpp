@@ -26,6 +26,7 @@
 #include <memory>
 #include <sstream>
 #include <iostream>
+#include <iomanip>
 
 // --------------------------------------------------------------
 // Implemenation of class http_request
@@ -33,7 +34,7 @@
 
 http_request::http_request(const std::string &host, const std::string &path, HTTP_METHOD method) :
 	  m_method(method)
-	, m_debug(nullptr)
+	, m_http_log(nullptr)
 {
 	m_curl = curl_easy_init();
 	if (!m_curl) {
@@ -171,13 +172,25 @@ http_response http_request::perform_request(const std::string *body, const std::
 
 	//write_lock lock;
 	// Set debug
-	if (m_debug) {
-		m_debug->file_lock.lock();
-		debug_cfg.stream = m_debug->file;
-		fprintf(m_debug->file, "== Request Start ==\n");
+//	if (m_debug) {
+//		m_debug->file_lock.lock();
+//		debug_cfg.stream = m_debug->file;
+//		fprintf(m_debug->file, "== Request Start ==\n");
+//		debug_cfg.trace_ascii = 1; /* enable ascii tracing */
+//		curl_easy_setopt(m_curl, CURLOPT_DEBUGFUNCTION, curl_trace);
+//		curl_easy_setopt(m_curl, CURLOPT_DEBUGDATA, this);
+//
+//		/* the DEBUGFUNCTION has no effect until we enable VERBOSE */
+//		curl_easy_setopt(m_curl, CURLOPT_VERBOSE, 1L);
+//	}
+
+	if (m_http_log) {
+		std::stringstream stream;
+		stream << "\n== Request Start ==\n";
+
 		debug_cfg.trace_ascii = 1; /* enable ascii tracing */
 		curl_easy_setopt(m_curl, CURLOPT_DEBUGFUNCTION, curl_trace);
-		curl_easy_setopt(m_curl, CURLOPT_DEBUGDATA, &debug_cfg);
+		curl_easy_setopt(m_curl, CURLOPT_DEBUGDATA, this);
 
 		/* the DEBUGFUNCTION has no effect until we enable VERBOSE */
 		curl_easy_setopt(m_curl, CURLOPT_VERBOSE, 1L);
@@ -224,10 +237,11 @@ http_response http_request::perform_request(const std::string *body, const std::
 	// reset curl handle
 	curl_easy_reset(m_curl);
 
-	if (m_debug) {
-		fprintf(m_debug->file, "== Request end ==\n\n");
-		m_debug->file_lock.unlock();
+	if (m_http_log) {
+		std::stringstream stream;
+		stream << "== Request end ==\n";
 	}
+
 	return ret;
 }
 
@@ -284,15 +298,11 @@ size_t http_request::read_callback(void *data, size_t size, size_t nmemb, void *
 
 int http_request::curl_trace(CURL *handle, curl_infotype type, char *data, size_t size, void *userp)
 {
-	curl_debug_config *config = (curl_debug_config *)userp;
+	http_request *obj = reinterpret_cast<http_request *>(userp);
 	const char *text;
+	std::stringstream stream;
 
 	switch (type) {
-	case CURLINFO_TEXT:
-		fprintf(config->stream, "== Info: %s", data);
-	default: /* in case a new one is introduced to shock us */
-		return 0;
-
 	case CURLINFO_HEADER_OUT:
 		text = "=> Send header";
 		break;
@@ -311,33 +321,50 @@ int http_request::curl_trace(CURL *handle, curl_infotype type, char *data, size_
 	case CURLINFO_SSL_DATA_IN:
 		text = "<= Recv SSL data";
 		break;
+	case CURLINFO_TEXT: {
+		stream << "== Info: " << data << std::endl;
+		obj->m_http_log(stream);
+//		FILE *stream = stdout;
+//		fprintf(stream, "== Info: %s", data);
+	}
+	default: /* in case a new one is introduced to shock us */
+
+		return 0;
 	}
 
-	curl_dump(text, config->stream, (uint8_t *)data, size, config->trace_ascii);
+	obj->curl_dump(text, (uint8_t *)data, size);
 	return 0;
 }
 
-void http_request::curl_dump(const char *text, FILE *stream, uint8_t *ptr, size_t size, char nohex)
+void http_request::curl_dump(const char *text, uint8_t *ptr, size_t size)
 {
+	std::stringstream stream;
+	//FILE *stream = stdout;
+	char nohex = 1;
 	unsigned int width=0x10;
 
-	if(nohex)
-		/* without the hex output, we can fit more on screen */
-		width = 0x80;
+	//if(nohex)
+	/* without the hex output, we can fit more on screen */
+	width = 0x80;
 
-	fprintf(stream, "%s, %10.10ld bytes (0x%8.8lx)\n", text, (long)size, (long)size);
+	stream
+		<< text
+		<< ", "
+		<< std::setw(10) << std::to_string(size)
+		<< " bytes "
+		<< "(0x"
+		<< std::hex
+		<< size << ")\n";
 
-	for(size_t i = 0; i < size; i += width) {
-
-		//fprintf(stream, "%4.4lx: ", (long)i);
-		fprintf(stream, "   ");
-		if(!nohex) {
+	for (size_t i = 0; i < size; i += width) {
+		stream << "   ";
+		if (!nohex) {
 			/* hex not disabled, show it */
-			for(size_t c = 0; c < width; c++) {
+			for (size_t c = 0; c < width; c++) {
 				if (i + c < size)
-					fprintf(stream, "%02x ", ptr[i + c]);
+					stream << ptr[i + c];
 				else
-					fputs("   ", stream);
+					stream << "   ";
 			}
 		}
 
@@ -347,22 +374,58 @@ void http_request::curl_dump(const char *text, FILE *stream, uint8_t *ptr, size_
 				i += (c + 2 - width);
 				break;
 			}
-			fprintf(stream, "%c", (ptr[i + c] >= 0x20) && (ptr[i + c] < 0x80) ? ptr[i + c] : '.');
+
+			char ch = (ptr[i + c] >= 0x20) && (ptr[i + c] < 0x80) ? ptr[i + c] : '.';
+
+			stream << ch;
 			/* check again for 0D0A, to avoid an extra \n if it's at width */
 			if(nohex && (i + c + 2 < size) && ptr[i + c + 1] == 0x0D && ptr[i + c + 2] == 0x0A) {
 				i += (c + 3 - width);
 				break;
 			}
 		}
-		fputc('\n', stream); /* newline */
+		stream << std::endl;
 	}
-	fflush(stream);
+
+	m_http_log(stream);
+
+//	fprintf(stream, "%s, %10.10ld bytes (0x%8.8lx)\n", text, (long)size, (long)size);
+//
+//	for(size_t i = 0; i < size; i += width) {
+//
+//		//fprintf(stream, "%4.4lx: ", (long)i);
+//		fprintf(stream, "   ");
+//		if(!nohex) {
+//			/* hex not disabled, show it */
+//			for(size_t c = 0; c < width; c++) {
+//				if (i + c < size)
+//					fprintf(stream, "%02x ", ptr[i + c]);
+//				else
+//					fputs("   ", stream);
+//			}
+//		}
+//
+//		for(size_t c = 0; (c < width) && (i + c < size); c++) {
+//			/* check for 0D0A; if found, skip past and start a new line of output */
+//			if(nohex && (i + c + 1 < size) && ptr[i + c]==0x0D && ptr[i + c + 1] == 0x0A) {
+//				i += (c + 2 - width);
+//				break;
+//			}
+//			fprintf(stream, "%c", (ptr[i + c] >= 0x20) && (ptr[i + c] < 0x80) ? ptr[i + c] : '.');
+//			/* check again for 0D0A, to avoid an extra \n if it's at width */
+//			if(nohex && (i + c + 2 < size) && ptr[i + c + 1] == 0x0D && ptr[i + c + 2] == 0x0A) {
+//				i += (c + 3 - width);
+//				break;
+//			}
+//		}
+//		fputc('\n', stream); /* newline */
+//	}
+//	fflush(stream);
 }
 
 // --------------------------------------------------------------
 // Implemenation of class http_req_base
 // --------------------------------------------------------------
-
 http_req_base::http_req_base(const std::string &host, const std::string &path, HTTP_METHOD method) :
 	  http_request(host, path, method)
 	, m_jwt(nullptr)

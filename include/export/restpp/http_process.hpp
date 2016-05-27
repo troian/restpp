@@ -39,6 +39,8 @@
  */
 typedef std::map<std::string, std::string> http_params;
 
+using http_log_cb = typename std::function<void (const std::stringstream &stream)>;
+
 /**
  * \brief
  */
@@ -126,8 +128,8 @@ public:
 	 *
 	 * \return None
 	 */
-	void set_debug(debug_object *debug_obj) {
-		m_debug = debug_obj;
+	void set_debug(http_log_cb cb) {
+		m_http_log = cb;
 	}
 
 	/*
@@ -264,7 +266,7 @@ private: // Static methods & callbacks
 	 *
 	 * \return None
 	 */
-	static void curl_dump(const char *text, FILE *stream, uint8_t *ptr, size_t size, char nohex);
+	void curl_dump(const char *text, uint8_t *ptr, size_t size);
 
 private:
 	CURL         *m_curl;
@@ -277,7 +279,9 @@ private:
 	http_request_info  m_last_request;
 	upload_object m_upload_obj;
 
-	debug_object *m_debug;
+	//debug_object *m_debug;
+
+	http_log_cb   m_http_log;
 };
 
 class http_req_base : public http_request {
