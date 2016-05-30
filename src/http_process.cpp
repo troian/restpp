@@ -32,9 +32,10 @@
 // Implemenation of class http_request
 // --------------------------------------------------------------
 
-http_request::http_request(const std::string &host, const std::string &path, HTTP_METHOD method) :
+http_request::http_request(const std::string &host, const std::string &path, HTTP_METHOD method, int timeout) :
 	  m_method(method)
 	, m_http_log(nullptr)
+	, m_timeout(timeout)
 {
 	m_curl = curl_easy_init();
 	if (!m_curl) {
@@ -77,12 +78,12 @@ void http_request::add_header(const std::string &key, const std::string &value)
 	m_header_params[key] = value;
 }
 
-void http_request::SetHeaders(http_params headers)
+void http_request::set_headers(http_params headers)
 {
 	m_header_params = headers;
 }
 
-http_params http_request::GetHeaders() const
+http_params http_request::get_headers() const
 {
 	return m_header_params;
 }
@@ -199,9 +200,9 @@ http_response http_request::perform_request(const std::string *body, const std::
 	if (res != CURLE_OK) {
 		if (res == CURLE_OPERATION_TIMEDOUT) {
 			ret.code = res;
-			ret.body = "Operation Timeout.";
+			ret.body = "Operation Timeout";
 		} else {
-			ret.body = "Failed to query.";
+			ret.body = "Failed to query";
 			ret.code = -1;
 		}
 	} else {
@@ -307,7 +308,8 @@ int http_request::curl_trace(CURL *handle, curl_infotype type, char *data, size_
 		text = "<= Recv SSL data";
 		break;
 	case CURLINFO_TEXT: {
-		std::stringstream stream << "== Info: " << data;
+		std::stringstream stream;
+		stream << "== Info: " << data;
 		obj->m_http_log(stream);
 	}
 	default: /* in case a new one is introduced to shock us */

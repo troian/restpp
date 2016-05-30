@@ -111,26 +111,26 @@ public:
 	 * \param
 	 * \param
 	 */
-	http_request(const std::string &host, const std::string &path, HTTP_METHOD method);
+	http_request(const std::string &host, const std::string &path, HTTP_METHOD method, int timeout = 0);
 
 	virtual ~http_request();
 
-	// set headers
-	void SetHeaders(http_params headers);
-
-	// get headers
-	http_params GetHeaders() const;
-
 	/**
-	 * \brief
-	 *
-	 * \param[in]
-	 *
-	 * \return None
-	 */
+ * \brief
+ *
+ * \param[in]
+ *
+ * \return None
+ */
 	void set_debug(http_log_cb cb) {
 		m_http_log = cb;
 	}
+
+	// set headers
+	void set_headers(http_params headers);
+
+	// get headers
+	http_params get_headers() const;
 
 	/*
 	 * \brief  Append additional headers
