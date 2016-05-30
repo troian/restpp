@@ -279,8 +279,6 @@ private:
 	http_request_info  m_last_request;
 	upload_object m_upload_obj;
 
-	//debug_object *m_debug;
-
 	http_log_cb   m_http_log;
 };
 

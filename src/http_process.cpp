@@ -170,20 +170,6 @@ http_response http_request::perform_request(const std::string *body, const std::
 		}
 	}
 
-	//write_lock lock;
-	// Set debug
-//	if (m_debug) {
-//		m_debug->file_lock.lock();
-//		debug_cfg.stream = m_debug->file;
-//		fprintf(m_debug->file, "== Request Start ==\n");
-//		debug_cfg.trace_ascii = 1; /* enable ascii tracing */
-//		curl_easy_setopt(m_curl, CURLOPT_DEBUGFUNCTION, curl_trace);
-//		curl_easy_setopt(m_curl, CURLOPT_DEBUGDATA, this);
-//
-//		/* the DEBUGFUNCTION has no effect until we enable VERBOSE */
-//		curl_easy_setopt(m_curl, CURLOPT_VERBOSE, 1L);
-//	}
-
 	if (m_http_log) {
 		std::stringstream stream;
 		stream << "\n== Request Start ==\n";
@@ -300,7 +286,6 @@ int http_request::curl_trace(CURL *handle, curl_infotype type, char *data, size_
 {
 	http_request *obj = reinterpret_cast<http_request *>(userp);
 	const char *text;
-	std::stringstream stream;
 
 	switch (type) {
 	case CURLINFO_HEADER_OUT:
@@ -322,13 +307,10 @@ int http_request::curl_trace(CURL *handle, curl_infotype type, char *data, size_
 		text = "<= Recv SSL data";
 		break;
 	case CURLINFO_TEXT: {
-		stream << "== Info: " << data << std::endl;
+		std::stringstream stream << "== Info: " << data;
 		obj->m_http_log(stream);
-//		FILE *stream = stdout;
-//		fprintf(stream, "== Info: %s", data);
 	}
 	default: /* in case a new one is introduced to shock us */
-
 		return 0;
 	}
 
@@ -339,7 +321,6 @@ int http_request::curl_trace(CURL *handle, curl_infotype type, char *data, size_
 void http_request::curl_dump(const char *text, uint8_t *ptr, size_t size)
 {
 	std::stringstream stream;
-	//FILE *stream = stdout;
 	char nohex = 1;
 	unsigned int width=0x10;
 
@@ -384,43 +365,9 @@ void http_request::curl_dump(const char *text, uint8_t *ptr, size_t size)
 				break;
 			}
 		}
-		stream << std::endl;
 	}
 
 	m_http_log(stream);
-
-//	fprintf(stream, "%s, %10.10ld bytes (0x%8.8lx)\n", text, (long)size, (long)size);
-//
-//	for(size_t i = 0; i < size; i += width) {
-//
-//		//fprintf(stream, "%4.4lx: ", (long)i);
-//		fprintf(stream, "   ");
-//		if(!nohex) {
-//			/* hex not disabled, show it */
-//			for(size_t c = 0; c < width; c++) {
-//				if (i + c < size)
-//					fprintf(stream, "%02x ", ptr[i + c]);
-//				else
-//					fputs("   ", stream);
-//			}
-//		}
-//
-//		for(size_t c = 0; (c < width) && (i + c < size); c++) {
-//			/* check for 0D0A; if found, skip past and start a new line of output */
-//			if(nohex && (i + c + 1 < size) && ptr[i + c]==0x0D && ptr[i + c + 1] == 0x0A) {
-//				i += (c + 2 - width);
-//				break;
-//			}
-//			fprintf(stream, "%c", (ptr[i + c] >= 0x20) && (ptr[i + c] < 0x80) ? ptr[i + c] : '.');
-//			/* check again for 0D0A, to avoid an extra \n if it's at width */
-//			if(nohex && (i + c + 2 < size) && ptr[i + c + 1] == 0x0D && ptr[i + c + 2] == 0x0A) {
-//				i += (c + 3 - width);
-//				break;
-//			}
-//		}
-//		fputc('\n', stream); /* newline */
-//	}
-//	fflush(stream);
 }
 
 // --------------------------------------------------------------
