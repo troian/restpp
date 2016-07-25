@@ -23,12 +23,16 @@ check_include_file_cxx(stdexcept HAVE_STDEXCEPT)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
 
-set(LIB_SOURCES
-	src/http_process.cpp
-)
-
 set(EXPORT_INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/export
+)
+
+set(LIB_SOURCES
+    src/http_process.cpp
+    src/http_exception.cpp
+	${EXPORT_INCLUDES}/restpp/http_process.hpp
+	${EXPORT_INCLUDES}/restpp/http_exception.hpp
+	${EXPORT_INCLUDES}/restpp/http_types.hpp
 )
 
 add_library(${PROJECT_NAME} STATIC ${LIB_SOURCES})

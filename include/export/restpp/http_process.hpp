@@ -28,108 +28,64 @@
 #include <memory>
 #include <mutex>
 #include <algorithm>
+
 #include <cstring>
 
 #include <curl/curl.h>
 
 #include <jwt/jwt.hpp>
 
-/**
- * \brief
- */
-typedef std::map<std::string, std::string> http_params;
-
-using http_log_cb = typename std::function<void (const std::stringstream &stream)>;
+#include <restpp/http_exception.hpp>
+#include <restpp/http_types.hpp>
 
 /**
- * \brief
- */
-typedef enum {
-	HTTP_METHOD_GET,
-	HTTP_METHOD_POST,
-	HTTP_METHOD_PUT,
-	HTTP_METHOD_DELETE
-} HTTP_METHOD;
-
-/**
- * \brief
- */
-typedef struct {
-	int          code;
-	std::string  body;
-	http_params  headers;
-} http_response;
-
-/**
- * \brief
- */
-typedef struct {
-	double totalTime;
-	double nameLookupTime;
-	double connectTime;
-	double appConnectTime;
-	double preTransferTime;
-	double startTransferTime;
-	double redirectTime;
-	int    redirectCount;
-} http_request_info;
-
-typedef struct {
-	std::mutex               file_lock;
-	FILE                    *file;
-} debug_object;
-
-/**
- * \struct UploadObject
- * \brief This structure represents the payload to upload on POST requests
- *
- *  \var upload_object::data
- *  Member 'data' contains the data to upload
- *  \var upload_object::length
- *  Member 'length' contains the length of the data to upload
- */
-typedef struct {
-	const char *data;
-	size_t      length;
-} upload_object;
-
-/**
- * \brief
+ * \class
  */
 class http_request {
-private:
-	typedef struct {
-		char trace_ascii; /* 1 or 0 */
-		FILE *stream;
-	} curl_debug_config;
-
 public:
 	/**
 	 * \brief
 	 *
-	 * \param
-	 * \param
-	 * \param
+	 * \param[in]
+	 * \param[in]
+	 * \param[in]
 	 */
-	http_request(const std::string &host, const std::string &path, HTTP_METHOD method, int timeout = 0);
+	http_request(const std::string &host, const std::string &path, HTTP_METHOD method);
+
+	/**
+	 * \brief
+	 *
+	 * \param[in]   rhs
+	 *
+	 * \return None
+	 */
+	http_request(const http_request &rhs);
 
 	virtual ~http_request();
 
 	/**
- * \brief
- *
- * \param[in]
- *
- * \return None
- */
+	 * \brief
+	 *
+	 * \param[in]
+	 *
+	 * \return None
+	 */
 	void set_debug(http_log_cb cb) {
 		m_http_log = cb;
 	}
 
-	// set headers
+	/**
+	 * \brief
+	 *
+	 * \param[in]   headers
+	 */
 	void set_headers(http_params headers);
 
-	// get headers
+	/**
+	 * \brief
+	 *
+	 * \return
+	 */
 	http_params get_headers() const;
 
 	/*
@@ -155,10 +111,14 @@ public:
 	 *
 	 * \param[in]
 	 * \param[in]
+	 * \param[in]
 	 *
 	 * \return  http_response
 	 */
-	http_response perform_request(const std::string *body, const std::string *content_type);
+	http_res perform_request(const std::string *body, const std::string *content_type, int timeout = 0);
+
+private:
+	void init_curl();
 
 private: // Static methods & callbacks
 	/**
@@ -269,22 +229,43 @@ private: // Static methods & callbacks
 	void curl_dump(const char *text, uint8_t *ptr, size_t size);
 
 private:
-	CURL         *m_curl;
-	std::string   m_uri;
-	HTTP_METHOD   m_method;
-	http_params   m_header_params;
-	http_params   m_query_params;
-	int           m_timeout;
-	bool          m_follow_redirects;
-	http_request_info  m_last_request;
-	upload_object m_upload_obj;
+	CURL              *m_curl;
+	std::string        m_uri;
+	HTTP_METHOD        m_method;
+	http_params        m_header_params;
+	http_params        m_query_params;
+	bool               m_follow_redirects;
+	http_req_info      m_last_request;
+	http_upload_object m_upload_obj;
 
-	http_log_cb   m_http_log;
+	http_log_cb        m_http_log;
 };
 
+/**
+ * \class
+ */
 class http_req_base : public http_request {
 public:
+	/**
+	 * \brief
+	 *
+	 * \param[in]
+	 * \param[in]
+	 * \param[in]
+	 *
+	 * \return  None
+	 */
 	http_req_base(const std::string &host, const std::string &path, HTTP_METHOD method);
+
+	/**
+	 * \brief
+	 *
+	 * \param[in]  rhs
+	 *
+	 * \return  None
+	 */
+	http_req_base(const http_req_base &rhs);
+
 	virtual ~http_req_base();
 
 	/**
@@ -312,7 +293,10 @@ public:
 	 *
 	 * \return None
 	 */
-	virtual http_response perform() final;
+	virtual http_res perform(int timeout = 0) final;
+
+public: // overloaded operators
+	http_req_base &operator =(const http_req_base &rhs);
 
 protected:
 	std::shared_ptr<jwt>         m_jwt;
@@ -325,56 +309,86 @@ protected:
 };
 
 /**
- * \brief
+ * \class http_req_get
+ *
+ * \brief Perform GET request to the remote
  */
 class http_req_get : public http_req_base {
 public:
+	/**
+	 * \brief
+	 *
+	 * \param[in]  host
+	 * \param[in]  path
+	 *
+	 * \return  None
+	 */
 	explicit http_req_get(const std::string &host, const std::string &path);
 
 	virtual ~http_req_get();
-public:
-
-private:
-
 };
 
 /**
- * \brief
+ * \class  http_req_post
+ *
+ * \brief  Perform POST request to the remote
  */
 class http_req_post : public http_req_base {
 public:
+	/**
+	 * \brief
+	 *
+	 * \param[in]  host
+	 * \param[in]  path
+	 * \param[in]  data
+	 *
+	 * \return
+	 */
 	explicit http_req_post(const std::string &host, const std::string &path, const std::string &data);
 
 	virtual ~http_req_post();
-public:
-	void set_body();
 };
 
 /**
- * \class
+ * \class  http_req_put
  *
- * \brief
+ * \brief  Perform PUT request to the remote
  */
 class http_req_put : public http_req_base {
 public:
+	/**
+	 * \brief
+	 *
+	 * \param[in]  host
+	 * \param[in]  path
+	 * \param[in]  data
+	 *
+	 * \return
+	 */
 	explicit http_req_put(const std::string &host, const std::string &path, const std::string &data);
 
 	virtual ~http_req_put();
-public:
-	void set_body();
 };
 
 /**
- * \class
+ * \class  http_req_del
  *
- * \brief
+ * \brief  Perform DEL request to the remote
  */
 class http_req_del : public http_req_base {
 public:
+	/**
+	 * \brief
+	 *
+	 * \param[in]  host
+	 * \param[in]  path
+	 *
+	 * \return
+	 */
 	explicit http_req_del(const std::string &host, const std::string &path);
 
+	explicit http_req_del(const std::string &host, const std::string &path, const std::string &data);
+
 	virtual ~http_req_del();
-public:
-	void set_body();
 };
 
