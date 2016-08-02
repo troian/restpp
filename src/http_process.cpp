@@ -121,7 +121,7 @@ void http_request::add_query(const std::string &key, const std::string &value)
 
 http_res http_request::perform_request(const std::string *body, const std::string *content_type, int timeout)
 {
-	http_res          ret = {};
+	http_res          ret;
 	std::string       headerString;
 	CURLcode          res = CURLE_OK;
 	std::string       query;
