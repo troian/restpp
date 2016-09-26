@@ -27,6 +27,7 @@
 #include <sstream>
 #include <iostream>
 #include <iomanip>
+#include <string>
 
 // --------------------------------------------------------------
 // Implemenation of class http_request
@@ -196,8 +197,6 @@ http_res http_request::perform_request(const std::string *body, const std::strin
 			curl_easy_setopt(m_curl, CURLOPT_POSTFIELDS, body->c_str());
 			curl_easy_setopt(m_curl, CURLOPT_POSTFIELDSIZE, body->size());
 		}  else if (m_method == HTTP_METHOD_DELETE) {
-			std::cout << "Delete req\n";
-
 			curl_easy_setopt(m_curl, CURLOPT_POSTFIELDS, body->c_str());
 		}
 	}
@@ -218,7 +217,7 @@ http_res http_request::perform_request(const std::string *body, const std::strin
 	}
 
 	// set follow redirect
-	if (m_follow_redirects == true) {
+	if (m_follow_redirects) {
 		curl_easy_setopt(m_curl, CURLOPT_FOLLOWLOCATION, 1L);
 	}
 
@@ -339,11 +338,11 @@ void http_request::curl_dump(const char *text, uint8_t *ptr, size_t size)
 {
 	std::stringstream stream;
 	char nohex = 1;
-	unsigned int width=0x10;
+	unsigned int width=0xFFF;
 
 	//if(nohex)
 	/* without the hex output, we can fit more on screen */
-	width = 0xFFF;
+//	width = 0xFFF;
 
 	stream
 		<< text
@@ -445,6 +444,7 @@ http_res http_req_base::perform(int timeout)
 
 void http_req_base::jwt_set_key(const uint8_t *key, size_t len)
 {
+	m_jwt.reset();
 	m_jwt = std::make_shared<jwt>(JWT_ALG_HS256);
 
 	m_len = len;

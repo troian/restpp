@@ -296,7 +296,7 @@ public:
 	virtual http_res perform(int timeout = 0) final;
 
 public: // overloaded operators
-	http_req_base &operator =(const http_req_base &rhs);
+//	http_req_base &operator =(const http_req_base &rhs);
 
 protected:
 	std::shared_ptr<jwt>         m_jwt;
