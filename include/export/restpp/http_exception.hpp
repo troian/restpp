@@ -66,10 +66,6 @@ public:
 		return m_err;
 	}
 
-	const int error() const {
-		return m_err;
-	}
-
 private:
 	int m_err;
 };

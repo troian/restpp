@@ -33,9 +33,9 @@
 // Implemenation of class http_request
 // --------------------------------------------------------------
 http_request::http_request(const std::string &host, const std::string &path, HTTP_METHOD method) :
-	  m_method(method)
-	, m_http_log(nullptr)
+	m_method(method)
 	, m_follow_redirects(true)
+	, m_http_log(nullptr)
 {
 
 	try {
@@ -46,7 +46,8 @@ http_request::http_request(const std::string &host, const std::string &path, HTT
 
 	m_uri.clear();
 	m_uri.append(host);
-	m_uri.append(path);
+	if (!path.empty())
+		m_uri.append(path);
 }
 
 http_request::http_request(const http_request &rhs)
@@ -90,10 +91,12 @@ void http_request::init_curl()
 	case HTTP_METHOD_POST:
 		curl_easy_setopt(m_curl, CURLOPT_POST, 1L);
 		break;
-	case HTTP_METHOD_DELETE: {
+	case HTTP_METHOD_DELETE:
 		curl_easy_setopt(m_curl, CURLOPT_CUSTOMREQUEST, "DELETE");
 		break;
-	}
+	case HTTP_METHOD_HEAD:
+		curl_easy_setopt(m_curl, CURLOPT_NOBODY, 1);
+		break;
 	default:
 		curl_easy_cleanup(m_curl);
 		throw std::runtime_error("Invalid HTTP method");
@@ -120,7 +123,7 @@ void http_request::add_query(const std::string &key, const std::string &value)
 	m_query_params[key] = value;
 }
 
-http_res http_request::perform_request(const std::string *body, const std::string *content_type, int timeout)
+http_res http_request::perform(const std::string *body, const std::string *content_type, int timeout)
 {
 	http_res          ret;
 	std::string       headerString;
@@ -152,10 +155,16 @@ http_res http_request::perform_request(const std::string *body, const std::strin
 	/** set query URL */
 	curl_easy_setopt(m_curl, CURLOPT_URL, m_uri.c_str());
 	/** set callback function */
-	curl_easy_setopt(m_curl, CURLOPT_WRITEFUNCTION, write_callback);
-	/** set data object to pass to callback function */
-	curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, &ret);
-	/** set the header callback function */
+
+//	curl_easy_setopt(m_curl, CURLOPT_HEADER, 1);
+
+	if (m_method != HTTP_METHOD_HEAD) {
+		curl_easy_setopt(m_curl, CURLOPT_WRITEFUNCTION, write_callback);
+		/** set data object to pass to callback function */
+		curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, &ret);
+		/** set the header callback function */
+	}
+
 	curl_easy_setopt(m_curl, CURLOPT_HEADERFUNCTION, header_callback);
 	/** callback object for headers */
 	curl_easy_setopt(m_curl, CURLOPT_HEADERDATA, &ret);
@@ -201,12 +210,13 @@ http_res http_request::perform_request(const std::string *body, const std::strin
 		}
 	}
 
-	if (m_http_log) {
-		curl_easy_setopt(m_curl, CURLOPT_DEBUGFUNCTION, curl_trace);
-		curl_easy_setopt(m_curl, CURLOPT_DEBUGDATA, this);
+	curl_easy_setopt(m_curl, CURLOPT_DEBUGFUNCTION, curl_trace);
+	curl_easy_setopt(m_curl, CURLOPT_DEBUGDATA, this);
 
-		/* the DEBUGFUNCTION has no effect until we enable VERBOSE */
+	if (m_http_log) {
 		curl_easy_setopt(m_curl, CURLOPT_VERBOSE, 1L);
+	} else {
+		curl_easy_setopt(m_curl, CURLOPT_VERBOSE, 0L);
 	}
 
 	// set timeout
@@ -299,38 +309,44 @@ size_t http_request::read_callback(void *data, size_t size, size_t nmemb, void *
 
 int http_request::curl_trace(CURL *handle, curl_infotype type, char *data, size_t size, void *userp)
 {
+	(void)handle;
+
 	http_request *obj = reinterpret_cast<http_request *>(userp);
-	const char *text;
 
-	switch (type) {
-	case CURLINFO_HEADER_OUT:
-		text = "=> Send header";
-		break;
-	case CURLINFO_DATA_OUT:
-		text = "=> Send data";
-		break;
-	case CURLINFO_SSL_DATA_OUT:
-		text = "=> Send SSL data";
-		break;
-	case CURLINFO_HEADER_IN:
-		text = "<= Recv header";
-		break;
-	case CURLINFO_DATA_IN:
-		text = "<= Recv data";
-		break;
-	case CURLINFO_SSL_DATA_IN:
-		text = "<= Recv SSL data";
-		break;
-	case CURLINFO_TEXT: {
-		std::stringstream stream;
-		stream << "== Info: " << data;
-		obj->m_http_log(stream);
-	}
-	default: /* in case a new one is introduced to shock us */
-		return 0;
+	if (obj->m_http_log) {
+		const char *text;
+
+		switch (type) {
+		case CURLINFO_HEADER_OUT:
+			text = "=> Send header";
+			break;
+		case CURLINFO_DATA_OUT:
+			text = "=> Send data";
+			break;
+		case CURLINFO_SSL_DATA_OUT:
+			text = "=> Send SSL data";
+			break;
+		case CURLINFO_HEADER_IN:
+			text = "<= Recv header";
+			break;
+		case CURLINFO_DATA_IN:
+			text = "<= Recv data";
+			break;
+		case CURLINFO_SSL_DATA_IN:
+			text = "<= Recv SSL data";
+			break;
+		case CURLINFO_TEXT: {
+			std::stringstream stream;
+			stream << "== Info: " << data;
+			obj->m_http_log(stream);
+		}
+		default: /* in case a new one is introduced to shock us */
+			return 0;
+		}
+
+		obj->curl_dump(text, (uint8_t *) data, size);
 	}
 
-	obj->curl_dump(text, (uint8_t *)data, size);
 	return 0;
 }
 
@@ -434,7 +450,7 @@ http_res http_req_base::perform(int timeout)
 	http_res response;
 
 	try {
-		response = perform_request(m_data.get(), &m_content_type, timeout);
+		response = http_request::perform(m_data.get(), &m_content_type, timeout);
 	} catch (...) {
 		throw;
 	}

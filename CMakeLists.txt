@@ -37,16 +37,16 @@ set(LIB_SOURCES
 
 add_library(${PROJECT_NAME} STATIC ${LIB_SOURCES})
 
-find_package(CURL REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LibCURL REQUIRED libcurl)
 
 target_include_directories(
 	${PROJECT_NAME}
 	PUBLIC
 	${EXPORT_INCLUDES}
-	${CURL_INCLUDE_DIRS}
 )
 
 target_link_libraries(${PROJECT_NAME}
-	${CURL_LIBRARIES}
+	curl
 	jwtpp
 )

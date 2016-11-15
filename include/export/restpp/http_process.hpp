@@ -115,7 +115,7 @@ public:
 	 *
 	 * \return  http_response
 	 */
-	http_res perform_request(const std::string *body, const std::string *content_type, int timeout = 0);
+	http_res perform(const std::string *body, const std::string *content_type, int timeout = 0);
 
 private:
 	void init_curl();
@@ -168,8 +168,8 @@ private: // Static methods & callbacks
 		s.erase(
 			s.begin()
 			, std::find_if(s.begin()
-				, s.end()
-				, std::not1(std::ptr_fun<int, int>(std::isspace)))
+			               , s.end()
+			               , std::not1(std::ptr_fun<int, int>(std::isspace)))
 		);
 		return s;
 	}
@@ -184,8 +184,8 @@ private: // Static methods & callbacks
 	static inline std::string &rtrim(std::string &s) {
 		s.erase(
 			std::find_if(s.rbegin()
-				, s.rend()
-				, std::not1(std::ptr_fun<int, int>(std::isspace))).base()
+			             , s.rend()
+			             , std::not1(std::ptr_fun<int, int>(std::isspace))).base()
 			, s.end()
 		);
 		return s;
