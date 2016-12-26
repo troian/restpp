@@ -23,11 +23,10 @@
  */
 
 #include <restpp/http_process.hpp>
-#include <memory>
+
 #include <sstream>
 #include <iostream>
 #include <iomanip>
-#include <string>
 
 // --------------------------------------------------------------
 // Implemenation of class http_request
