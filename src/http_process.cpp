@@ -32,7 +32,7 @@
 // Implemenation of class http_request
 // --------------------------------------------------------------
 http_request::http_request(const std::string &host, const std::string &path, HTTP_METHOD method) :
-	m_method(method)
+	  m_method(method)
 	, m_follow_redirects(true)
 	, m_http_log(nullptr)
 {
@@ -182,6 +182,7 @@ http_res http_request::perform(const std::string *body, const std::string *conte
 		}
 	} catch (const std::exception &e) {
 		std::cerr << e.what();
+		curl_slist_free_all(headerList);
 		throw;
 	}
 
@@ -232,22 +233,13 @@ http_res http_request::perform(const std::string *body, const std::string *conte
 
 	res = curl_easy_perform(m_curl);
 
-//	curl_easy_getinfo(m_curl, CURLINFO_TOTAL_TIME, &m_last_request.totalTime);
-//	curl_easy_getinfo(m_curl, CURLINFO_NAMELOOKUP_TIME, &m_last_request.nameLookupTime);
-//	curl_easy_getinfo(m_curl, CURLINFO_CONNECT_TIME, &m_last_request.connectTime);
-//	curl_easy_getinfo(m_curl, CURLINFO_APPCONNECT_TIME, &m_last_request.appConnectTime);
-//	curl_easy_getinfo(m_curl, CURLINFO_PRETRANSFER_TIME, &m_last_request.preTransferTime);
-//	curl_easy_getinfo(m_curl, CURLINFO_STARTTRANSFER_TIME, &m_last_request.startTransferTime);
-//	curl_easy_getinfo(m_curl, CURLINFO_REDIRECT_TIME, &m_last_request.redirectTime);
-//	curl_easy_getinfo(m_curl, CURLINFO_REDIRECT_COUNT, &m_last_request.redirectCount);
-
 	if (res != CURLE_OK) {
 		curl_slist_free_all(headerList);
 		throw http_req_failure(curl_easy_strerror(res), res);
 	} else {
 		int64_t http_code = 0;
 		curl_easy_getinfo(m_curl, CURLINFO_RESPONSE_CODE, &http_code);
-		ret.code = static_cast<int>(http_code);
+		ret.code = static_cast<http_status>(http_code);
 
 		curl_slist_free_all(headerList);
 	}

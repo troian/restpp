@@ -30,6 +30,8 @@ set(EXPORT_INCLUDES
 set(LIB_SOURCES
     src/http_process.cpp
     src/http_exception.cpp
+    src/types.cpp
+
 	${EXPORT_INCLUDES}/restpp/http_process.hpp
 	${EXPORT_INCLUDES}/restpp/http_exception.hpp
 	${EXPORT_INCLUDES}/restpp/http_types.hpp
@@ -49,4 +51,5 @@ target_include_directories(
 target_link_libraries(${PROJECT_NAME}
 	curl
 	jwtpp
+	typespp
 )
