@@ -33,8 +33,6 @@
 
 #include <curl/curl.h>
 
-#include <jwtpp/crypto.hpp>
-
 #include <restpp/http_exception.hpp>
 #include <restpp/http_types.hpp>
 
