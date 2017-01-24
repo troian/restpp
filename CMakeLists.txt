@@ -50,6 +50,6 @@ target_include_directories(
 
 target_link_libraries(${PROJECT_NAME}
 	curl
-	jwtpp
+	jwtpp-static
 	typespp
 )

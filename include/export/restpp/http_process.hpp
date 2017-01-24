@@ -33,10 +33,12 @@
 
 #include <curl/curl.h>
 
-#include <jwt/jwt.hpp>
+#include <jwtpp/crypto.hpp>
 
 #include <restpp/http_exception.hpp>
 #include <restpp/http_types.hpp>
+
+#include <types/types.hpp>
 
 /**
  * \class
@@ -95,6 +97,8 @@ public:
 	 * \param[in]   Header value
 	 */
 	void add_header(const std::string& key, const std::string& value);
+
+	void del_header(const std::string &key);
 
 	/**
 	 * \brief  Add query paramenter
@@ -271,41 +275,20 @@ public:
 	/**
 	 * \brief
 	 *
-	 * \param[in]
-	 * \param[in]
-	 *
-	 * \return none
-	 */
-	virtual void jwt_set_key(const uint8_t *key, size_t len) final;
-
-	/**
-	 * \brief
-	 *
-	 * \param[in]
-	 * \param[in]
-	 *
-	 * \return none
-	 */
-	virtual void jwt_add_grant(const std::string &key, const std::string &value) final;
-
-	/**
-	 * \brief
-	 *
 	 * \return None
 	 */
 	virtual http_res perform(int timeout = 0) final;
 
-public: // overloaded operators
-//	http_req_base &operator =(const http_req_base &rhs);
-
+public:
+	std::string timestamp() {
+		return timestamp_;
+	}
 protected:
-	std::shared_ptr<jwt>         m_jwt;
-
 	std::shared_ptr<std::string> m_data;
-	std::string                  m_content_type;
+	std::string                  content_type_;
 
-	const uint8_t               *m_key;
-	size_t                       m_len;
+private:
+	std::string timestamp_;
 };
 
 /**

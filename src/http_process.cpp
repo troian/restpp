@@ -107,6 +107,13 @@ void http_request::add_header(const std::string &key, const std::string &value)
 	m_header_params[key] = value;
 }
 
+void http_request::del_header(const std::string &key)
+{
+	if (m_header_params.find(key) != m_header_params.end()) {
+		m_header_params.erase(key);
+	}
+}
+
 void http_request::set_headers(http_params headers)
 {
 	m_header_params = headers;
@@ -404,67 +411,32 @@ void http_request::curl_dump(const char *text, uint8_t *ptr, size_t size)
 // --------------------------------------------------------------
 http_req_base::http_req_base(const std::string &host, const std::string &path, HTTP_METHOD method) :
 	  http_request(host, path, method)
-	, m_jwt(nullptr)
+	, timestamp_(timestamp_str_ms())
 { }
 
 http_req_base::http_req_base(const http_req_base &rhs) :
 	  http_request(rhs)
 {
-	m_jwt = rhs.m_jwt;
-	m_key = rhs.m_key;
 	m_data = rhs.m_data;
-	m_content_type = rhs.m_content_type;
-	m_len = rhs.m_len;
+	content_type_ = rhs.content_type_;
 }
 
 http_req_base::~http_req_base()
 {
-	m_jwt.reset();
+//	jwt_.reset();
 }
 
 http_res http_req_base::perform(int timeout)
 {
-	if (m_jwt) {
-		std::stringstream stamp;
-		stamp << std::time(nullptr);
-		m_jwt->add_grant("timestamp", stamp.str());
-
-		std::string bearer("Bearer ");
-		std::string token;
-		m_jwt->sign(token, m_key, m_len);
-
-		bearer += token;
-
-		add_header("Authorization", bearer);
-	}
-
 	http_res response;
 
 	try {
-		response = http_request::perform(m_data.get(), &m_content_type, timeout);
+		response = http_request::perform(m_data.get(), &content_type_, timeout);
 	} catch (...) {
 		throw;
 	}
 
 	return response;
-}
-
-void http_req_base::jwt_set_key(const uint8_t *key, size_t len)
-{
-	m_jwt.reset();
-	m_jwt = std::make_shared<jwt>(JWT_ALG_HS256);
-
-	m_len = len;
-	m_key = key;
-}
-
-void http_req_base::jwt_add_grant(const std::string &key, const std::string &value)
-{
-	if (!m_jwt) {
-		throw std::runtime_error("JWT not initialized. Issue set_jwt_key first");
-	} else {
-		m_jwt->add_grant(key, value);
-	}
 }
 
 // --------------------------------------------------------------
