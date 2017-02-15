@@ -44,9 +44,11 @@
 class http_request {
 public:
 	struct ops {
-		bool verify_peer      = true;
-		bool verify_host      = true;
-		bool follow_redirects = true;
+		bool        verify_peer      = true;
+		bool        verify_host      = true;
+		bool        follow_redirects = true;
+		int         timeout          = 0;
+		std::string save_to;
 	};
 
 public:
@@ -124,7 +126,7 @@ public:
 	 *
 	 * \return  http_response
 	 */
-	http_res perform(const std::string *body, const std::string *content_type, int timeout = 0);
+	http_res perform(const std::string *body, const std::string *content_type);
 
 private:
 	void init_curl();
@@ -243,7 +245,6 @@ private:
 	HTTP_METHOD        method_;
 	http_params        header_params_;
 	http_params        query_params_;
-	bool               follow_redirects_;
 	http_req_info      last_request_;
 	http_upload_object upload_obj_;
 	http_log_cb        http_log_;
@@ -282,7 +283,7 @@ public:
 	 *
 	 * \return None
 	 */
-	virtual http_res perform(int timeout = 0) final;
+	virtual http_res perform() final;
 
 public:
 	std::string timestamp() {

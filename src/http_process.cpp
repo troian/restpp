@@ -133,7 +133,7 @@ void http_request::add_query(const std::string &key, const std::string &value)
 	query_params_[key] = value;
 }
 
-http_res http_request::perform(const std::string *body, const std::string *content_type, int timeout)
+http_res http_request::perform(const std::string *body, const std::string *content_type)
 {
 	http_res          ret;
 	std::string       headerString;
@@ -162,39 +162,21 @@ http_res http_request::perform(const std::string *body, const std::string *conte
 		uri_.append(query);
 	}
 
-	/** set query URL */
 	curl_easy_setopt(curl_, CURLOPT_URL, uri_.c_str());
-	/** set callback function */
-
 //	curl_easy_setopt(curl_, CURLOPT_HEADER, 1);
 
-	if (method_ != HTTP_METHOD_HEAD) {
-		curl_easy_setopt(curl_, CURLOPT_WRITEFUNCTION, write_callback);
-		/** set data object to pass to callback function */
-		curl_easy_setopt(curl_, CURLOPT_WRITEDATA, &ret);
-		/** set the header callback function */
-	}
-
 	curl_easy_setopt(curl_, CURLOPT_HEADERFUNCTION, header_callback);
-	/** callback object for headers */
 	curl_easy_setopt(curl_, CURLOPT_HEADERDATA, &ret);
-	/** set http headers */
 
 	if (content_type && !content_type->empty()) {
 		add_header("Accept", *content_type);
 	}
 
-	try {
-		for (auto it : header_params_) {
-			headerString = it.first;
-			headerString += ": ";
-			headerString += it.second;
-			headerList = curl_slist_append(headerList, headerString.c_str());
-		}
-	} catch (const std::exception &e) {
-		std::cerr << e.what();
-		curl_slist_free_all(headerList);
-		throw;
+	for (auto it : header_params_) {
+		headerString = it.first;
+		headerString += ": ";
+		headerString += it.second;
+		headerList = curl_slist_append(headerList, headerString.c_str());
 	}
 
 	curl_easy_setopt(curl_, CURLOPT_HTTPHEADER, headerList);
@@ -205,13 +187,9 @@ http_res http_request::perform(const std::string *body, const std::string *conte
 			upload_obj_.data = body->c_str();
 			upload_obj_.length = body->size();
 
-			/** Now specify we want to PUT data */
 			curl_easy_setopt(curl_, CURLOPT_UPLOAD, 1L);
-			/** set read callback function */
 			curl_easy_setopt(curl_, CURLOPT_READFUNCTION, read_callback);
-			/** set data object to pass to callback function */
 			curl_easy_setopt(curl_, CURLOPT_READDATA, &upload_obj_);
-			/** set data size */
 			curl_easy_setopt(curl_, CURLOPT_INFILESIZE, static_cast<int64_t>(upload_obj_.length));
 		} else if (method_ == HTTP_METHOD_POST) {
 			curl_easy_setopt(curl_, CURLOPT_POSTFIELDS, body->c_str());
@@ -221,28 +199,35 @@ http_res http_request::perform(const std::string *body, const std::string *conte
 		}
 	}
 
-	curl_easy_setopt(curl_, CURLOPT_DEBUGFUNCTION, curl_trace);
-	curl_easy_setopt(curl_, CURLOPT_DEBUGDATA, this);
+	curl_easy_setopt(curl_, CURLOPT_VERBOSE, http_log_ ? 1L : 0L);
 
 	if (http_log_) {
-		curl_easy_setopt(curl_, CURLOPT_VERBOSE, 1L);
-	} else {
-		curl_easy_setopt(curl_, CURLOPT_VERBOSE, 0L);
+		curl_easy_setopt(curl_, CURLOPT_DEBUGFUNCTION, curl_trace);
+		curl_easy_setopt(curl_, CURLOPT_DEBUGDATA, this);
 	}
 
-	// set timeout
-	if (timeout != 0) {
-		curl_easy_setopt(curl_, CURLOPT_TIMEOUT, timeout);
-		// dont want to get a sig alarm on timeout
-		curl_easy_setopt(curl_, CURLOPT_NOSIGNAL, 1);
-	}
+	// don't send a sig alarm on timeout
+	curl_easy_setopt(curl_, CURLOPT_NOSIGNAL, 1L);
+	curl_easy_setopt(curl_, CURLOPT_TIMEOUT, ops_.timeout);
 
-	// set follow redirect
-	if (follow_redirects_) {
-		curl_easy_setopt(curl_, CURLOPT_FOLLOWLOCATION, 1L);
+	FILE *wr_file = nullptr;
+
+	if (method_ != HTTP_METHOD_HEAD) {
+		if (ops_.save_to.empty()) {
+			curl_easy_setopt(curl_, CURLOPT_WRITEFUNCTION, write_callback);
+			curl_easy_setopt(curl_, CURLOPT_WRITEDATA, &ret);
+		} else {
+			wr_file = fopen(ops_.save_to.c_str(), "wb");
+			curl_easy_setopt(curl_, CURLOPT_WRITEFUNCTION, NULL);
+			curl_easy_setopt(curl_, CURLOPT_WRITEDATA, wr_file);
+		}
 	}
 
 	res = curl_easy_perform(curl_);
+
+	if (wr_file) {
+		fclose(wr_file);
+	}
 
 	if (res != CURLE_OK) {
 		curl_slist_free_all(headerList);
@@ -430,12 +415,12 @@ http_req_base::~http_req_base()
 //	jwt_.reset();
 }
 
-http_res http_req_base::perform(int timeout)
+http_res http_req_base::perform()
 {
 	http_res response;
 
 	try {
-		response = http_request::perform(data_.get(), &content_type_, timeout);
+		response = http_request::perform(data_.get(), &content_type_);
 	} catch (...) {
 		throw;
 	}
