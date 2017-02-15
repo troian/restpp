@@ -43,6 +43,13 @@
  */
 class http_request {
 public:
+	struct ops {
+		bool verify_peer      = true;
+		bool verify_host      = true;
+		bool follow_redirects = true;
+	};
+
+public:
 	/**
 	 * \brief
 	 *
@@ -50,7 +57,7 @@ public:
 	 * \param[in]
 	 * \param[in]
 	 */
-	http_request(const std::string &host, const std::string &path, HTTP_METHOD method);
+	http_request(const http_request::ops &ops, const std::string &host, const std::string &path, HTTP_METHOD method);
 
 	/**
 	 * \brief
@@ -71,7 +78,7 @@ public:
 	 * \return None
 	 */
 	void set_debug(http_log_cb cb) {
-		m_http_log = cb;
+		http_log_ = cb;
 	}
 
 	/**
@@ -231,16 +238,16 @@ private: // Static methods & callbacks
 	void curl_dump(const char *text, uint8_t *ptr, size_t size);
 
 private:
-	CURL              *m_curl;
-	std::string        m_uri;
-	HTTP_METHOD        m_method;
-	http_params        m_header_params;
-	http_params        m_query_params;
-	bool               m_follow_redirects;
-	http_req_info      m_last_request;
-	http_upload_object m_upload_obj;
-
-	http_log_cb        m_http_log;
+	CURL              *curl_;
+	std::string        uri_;
+	HTTP_METHOD        method_;
+	http_params        header_params_;
+	http_params        query_params_;
+	bool               follow_redirects_;
+	http_req_info      last_request_;
+	http_upload_object upload_obj_;
+	http_log_cb        http_log_;
+	http_request::ops  ops_;
 };
 
 /**
@@ -257,7 +264,7 @@ public:
 	 *
 	 * \return  None
 	 */
-	http_req_base(const std::string &host, const std::string &path, HTTP_METHOD method);
+	http_req_base(const http_request::ops &ops, const std::string &host, const std::string &path, HTTP_METHOD method);
 
 	/**
 	 * \brief
@@ -282,7 +289,7 @@ public:
 		return timestamp_;
 	}
 protected:
-	std::shared_ptr<std::string> m_data;
+	std::shared_ptr<std::string> data_;
 	std::string                  content_type_;
 
 private:
@@ -304,7 +311,7 @@ public:
 	 *
 	 * \return  None
 	 */
-	explicit http_req_get(const std::string &host, const std::string &path);
+	explicit http_req_get(const http_request::ops &ops, const std::string &host, const std::string &path);
 
 	virtual ~http_req_get();
 };
@@ -325,7 +332,7 @@ public:
 	 *
 	 * \return
 	 */
-	explicit http_req_post(const std::string &host, const std::string &path, const std::string &data);
+	explicit http_req_post(const http_request::ops &ops, const std::string &host, const std::string &path, const std::string &data);
 
 	virtual ~http_req_post();
 };
@@ -346,7 +353,7 @@ public:
 	 *
 	 * \return
 	 */
-	explicit http_req_put(const std::string &host, const std::string &path, const std::string &data);
+	explicit http_req_put(const http_request::ops &ops, const std::string &host, const std::string &path, const std::string &data);
 
 	virtual ~http_req_put();
 };
@@ -366,9 +373,7 @@ public:
 	 *
 	 * \return
 	 */
-	explicit http_req_del(const std::string &host, const std::string &path);
-
-	explicit http_req_del(const std::string &host, const std::string &path, const std::string &data);
+	explicit http_req_del(const http_request::ops &ops, const std::string &host, const std::string &path, const std::string *data = nullptr);
 
 	virtual ~http_req_del();
 };

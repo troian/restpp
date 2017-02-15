@@ -31,10 +31,10 @@
 // --------------------------------------------------------------
 // Implemenation of class http_request
 // --------------------------------------------------------------
-http_request::http_request(const std::string &host, const std::string &path, HTTP_METHOD method) :
-	  m_method(method)
-	, m_follow_redirects(true)
-	, m_http_log(nullptr)
+http_request::http_request(const http_request::ops &ops, const std::string &host, const std::string &path, HTTP_METHOD method) :
+	  method_(method)
+	, http_log_(nullptr)
+	, ops_(ops)
 {
 
 	try {
@@ -43,22 +43,22 @@ http_request::http_request(const std::string &host, const std::string &path, HTT
 		throw;
 	}
 
-	m_uri.clear();
-	m_uri.append(host);
-	if (!path.empty())
-		m_uri.append(path);
+	uri_.clear();
+	uri_.append(host);
+	if (!path.empty()) {
+		uri_.append(path);
+	}
 }
 
 http_request::http_request(const http_request &rhs)
 {
-	m_uri = rhs.m_uri;
-	m_method = rhs.m_method;
-	m_header_params = rhs.m_header_params;
-	m_query_params = rhs.m_query_params;
-	m_follow_redirects = rhs.m_follow_redirects;
-	m_last_request = rhs.m_last_request;
-	m_upload_obj = rhs.m_upload_obj;
-	m_http_log = rhs.m_http_log;
+	uri_           = rhs.uri_;
+	method_        = rhs.method_;
+	header_params_ = rhs.header_params_;
+	query_params_  = rhs.query_params_;
+	last_request_  = rhs.last_request_;
+	upload_obj_    = rhs.upload_obj_;
+	http_log_      = rhs.http_log_;
 
 	try {
 		init_curl();
@@ -70,63 +70,67 @@ http_request::http_request(const http_request &rhs)
 
 http_request::~http_request()
 {
-	curl_easy_reset(m_curl);
-	curl_easy_cleanup(m_curl);
+	curl_easy_reset(curl_);
+	curl_easy_cleanup(curl_);
 }
 
 void http_request::init_curl()
 {
-	m_curl = curl_easy_init();
-	if (!m_curl) {
+	curl_ = curl_easy_init();
+	if (!curl_) {
 		throw std::runtime_error("Couldn't initialize curl handle");
 	}
 
-	switch (m_method) {
+	switch (method_) {
 	case HTTP_METHOD_GET:
 		break;
 	case HTTP_METHOD_PUT:
-		curl_easy_setopt(m_curl, CURLOPT_PUT, 1L);
+		curl_easy_setopt(curl_, CURLOPT_PUT, 1L);
 		break;
 	case HTTP_METHOD_POST:
-		curl_easy_setopt(m_curl, CURLOPT_POST, 1L);
+		curl_easy_setopt(curl_, CURLOPT_POST, 1L);
 		break;
 	case HTTP_METHOD_DELETE:
-		curl_easy_setopt(m_curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+		curl_easy_setopt(curl_, CURLOPT_CUSTOMREQUEST, "DELETE");
 		break;
 	case HTTP_METHOD_HEAD:
-		curl_easy_setopt(m_curl, CURLOPT_NOBODY, 1);
+		curl_easy_setopt(curl_, CURLOPT_NOBODY, 1);
 		break;
 	default:
-		curl_easy_cleanup(m_curl);
+		curl_easy_cleanup(curl_);
 		throw std::runtime_error("Invalid HTTP method");
 	}
+
+	curl_easy_setopt(curl_, CURLOPT_SSL_VERIFYPEER, ops_.verify_peer ? 1L : 0L);
+	curl_easy_setopt(curl_, CURLOPT_SSL_VERIFYHOST, ops_.verify_host ? 1L : 0L);
+	curl_easy_setopt(curl_, CURLOPT_FOLLOWLOCATION, ops_.follow_redirects ? 1L : 0L);
 }
 
 void http_request::add_header(const std::string &key, const std::string &value)
 {
-	m_header_params[key] = value;
+	header_params_[key] = value;
 }
 
 void http_request::del_header(const std::string &key)
 {
-	if (m_header_params.find(key) != m_header_params.end()) {
-		m_header_params.erase(key);
+	if (header_params_.find(key) != header_params_.end()) {
+		header_params_.erase(key);
 	}
 }
 
 void http_request::set_headers(http_params headers)
 {
-	m_header_params = headers;
+	header_params_ = headers;
 }
 
 http_params http_request::get_headers() const
 {
-	return m_header_params;
+	return header_params_;
 }
 
 void http_request::add_query(const std::string &key, const std::string &value)
 {
-	m_query_params[key] = value;
+	query_params_[key] = value;
 }
 
 http_res http_request::perform(const std::string *body, const std::string *content_type, int timeout)
@@ -138,14 +142,14 @@ http_res http_request::perform(const std::string *body, const std::string *conte
 	curl_slist       *headerList = NULL;
 
 	/** Set http query if any */
-	for (auto it : m_query_params) {
+	for (auto it : query_params_) {
 		if (query.empty())
 			query += "?";
 		else
 			query += "&";
 
 		auto encode = [&query, this](const char *str, int len) {
-			char *enc = curl_easy_escape(m_curl, str, len);
+			char *enc = curl_easy_escape(curl_, str, len);
 			query += enc;
 		};
 
@@ -155,25 +159,25 @@ http_res http_request::perform(const std::string *body, const std::string *conte
 	}
 
 	if (!query.empty()) {
-		m_uri.append(query);
+		uri_.append(query);
 	}
 
 	/** set query URL */
-	curl_easy_setopt(m_curl, CURLOPT_URL, m_uri.c_str());
+	curl_easy_setopt(curl_, CURLOPT_URL, uri_.c_str());
 	/** set callback function */
 
-//	curl_easy_setopt(m_curl, CURLOPT_HEADER, 1);
+//	curl_easy_setopt(curl_, CURLOPT_HEADER, 1);
 
-	if (m_method != HTTP_METHOD_HEAD) {
-		curl_easy_setopt(m_curl, CURLOPT_WRITEFUNCTION, write_callback);
+	if (method_ != HTTP_METHOD_HEAD) {
+		curl_easy_setopt(curl_, CURLOPT_WRITEFUNCTION, write_callback);
 		/** set data object to pass to callback function */
-		curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, &ret);
+		curl_easy_setopt(curl_, CURLOPT_WRITEDATA, &ret);
 		/** set the header callback function */
 	}
 
-	curl_easy_setopt(m_curl, CURLOPT_HEADERFUNCTION, header_callback);
+	curl_easy_setopt(curl_, CURLOPT_HEADERFUNCTION, header_callback);
 	/** callback object for headers */
-	curl_easy_setopt(m_curl, CURLOPT_HEADERDATA, &ret);
+	curl_easy_setopt(curl_, CURLOPT_HEADERDATA, &ret);
 	/** set http headers */
 
 	if (content_type && !content_type->empty()) {
@@ -181,7 +185,7 @@ http_res http_request::perform(const std::string *body, const std::string *conte
 	}
 
 	try {
-		for (auto it : m_header_params) {
+		for (auto it : header_params_) {
 			headerString = it.first;
 			headerString += ": ";
 			headerString += it.second;
@@ -193,59 +197,59 @@ http_res http_request::perform(const std::string *body, const std::string *conte
 		throw;
 	}
 
-	curl_easy_setopt(m_curl, CURLOPT_HTTPHEADER, headerList);
+	curl_easy_setopt(curl_, CURLOPT_HTTPHEADER, headerList);
 
 	// Set body data if any
 	if (body && !body->empty()) {
-		if (m_method == HTTP_METHOD_PUT) {
-			m_upload_obj.data = body->c_str();
-			m_upload_obj.length = body->size();
+		if (method_ == HTTP_METHOD_PUT) {
+			upload_obj_.data = body->c_str();
+			upload_obj_.length = body->size();
 
 			/** Now specify we want to PUT data */
-			curl_easy_setopt(m_curl, CURLOPT_UPLOAD, 1L);
+			curl_easy_setopt(curl_, CURLOPT_UPLOAD, 1L);
 			/** set read callback function */
-			curl_easy_setopt(m_curl, CURLOPT_READFUNCTION, read_callback);
+			curl_easy_setopt(curl_, CURLOPT_READFUNCTION, read_callback);
 			/** set data object to pass to callback function */
-			curl_easy_setopt(m_curl, CURLOPT_READDATA, &m_upload_obj);
+			curl_easy_setopt(curl_, CURLOPT_READDATA, &upload_obj_);
 			/** set data size */
-			curl_easy_setopt(m_curl, CURLOPT_INFILESIZE, static_cast<int64_t>(m_upload_obj.length));
-		} else if (m_method == HTTP_METHOD_POST) {
-			curl_easy_setopt(m_curl, CURLOPT_POSTFIELDS, body->c_str());
-			curl_easy_setopt(m_curl, CURLOPT_POSTFIELDSIZE, body->size());
-		}  else if (m_method == HTTP_METHOD_DELETE) {
-			curl_easy_setopt(m_curl, CURLOPT_POSTFIELDS, body->c_str());
+			curl_easy_setopt(curl_, CURLOPT_INFILESIZE, static_cast<int64_t>(upload_obj_.length));
+		} else if (method_ == HTTP_METHOD_POST) {
+			curl_easy_setopt(curl_, CURLOPT_POSTFIELDS, body->c_str());
+			curl_easy_setopt(curl_, CURLOPT_POSTFIELDSIZE, body->size());
+		}  else if (method_ == HTTP_METHOD_DELETE) {
+			curl_easy_setopt(curl_, CURLOPT_POSTFIELDS, body->c_str());
 		}
 	}
 
-	curl_easy_setopt(m_curl, CURLOPT_DEBUGFUNCTION, curl_trace);
-	curl_easy_setopt(m_curl, CURLOPT_DEBUGDATA, this);
+	curl_easy_setopt(curl_, CURLOPT_DEBUGFUNCTION, curl_trace);
+	curl_easy_setopt(curl_, CURLOPT_DEBUGDATA, this);
 
-	if (m_http_log) {
-		curl_easy_setopt(m_curl, CURLOPT_VERBOSE, 1L);
+	if (http_log_) {
+		curl_easy_setopt(curl_, CURLOPT_VERBOSE, 1L);
 	} else {
-		curl_easy_setopt(m_curl, CURLOPT_VERBOSE, 0L);
+		curl_easy_setopt(curl_, CURLOPT_VERBOSE, 0L);
 	}
 
 	// set timeout
 	if (timeout != 0) {
-		curl_easy_setopt(m_curl, CURLOPT_TIMEOUT, timeout);
+		curl_easy_setopt(curl_, CURLOPT_TIMEOUT, timeout);
 		// dont want to get a sig alarm on timeout
-		curl_easy_setopt(m_curl, CURLOPT_NOSIGNAL, 1);
+		curl_easy_setopt(curl_, CURLOPT_NOSIGNAL, 1);
 	}
 
 	// set follow redirect
-	if (m_follow_redirects) {
-		curl_easy_setopt(m_curl, CURLOPT_FOLLOWLOCATION, 1L);
+	if (follow_redirects_) {
+		curl_easy_setopt(curl_, CURLOPT_FOLLOWLOCATION, 1L);
 	}
 
-	res = curl_easy_perform(m_curl);
+	res = curl_easy_perform(curl_);
 
 	if (res != CURLE_OK) {
 		curl_slist_free_all(headerList);
 		throw http_req_failure(curl_easy_strerror(res), res);
 	} else {
 		int64_t http_code = 0;
-		curl_easy_getinfo(m_curl, CURLINFO_RESPONSE_CODE, &http_code);
+		curl_easy_getinfo(curl_, CURLINFO_RESPONSE_CODE, &http_code);
 		ret.code = static_cast<http_status>(http_code);
 
 		curl_slist_free_all(headerList);
@@ -311,7 +315,7 @@ int http_request::curl_trace(CURL *handle, curl_infotype type, char *data, size_
 
 	http_request *obj = reinterpret_cast<http_request *>(userp);
 
-	if (obj->m_http_log) {
+	if (obj->http_log_) {
 		const char *text;
 
 		switch (type) {
@@ -336,7 +340,7 @@ int http_request::curl_trace(CURL *handle, curl_infotype type, char *data, size_
 		case CURLINFO_TEXT: {
 			std::stringstream stream;
 			stream << "== Info: " << data;
-			obj->m_http_log(stream);
+			obj->http_log_(stream);
 		}
 		default: /* in case a new one is introduced to shock us */
 			return 0;
@@ -403,23 +407,23 @@ void http_request::curl_dump(const char *text, uint8_t *ptr, size_t size)
 		stream << std::endl;
 	}
 
-	m_http_log(stream);
+	http_log_(stream);
+}
+
+http_req_base::http_req_base(const http_req_base &rhs) :
+	  http_request(rhs)
+{
+	data_ = rhs.data_;
+	content_type_ = rhs.content_type_;
 }
 
 // --------------------------------------------------------------
 // Implemenation of class http_req_base
 // --------------------------------------------------------------
-http_req_base::http_req_base(const std::string &host, const std::string &path, HTTP_METHOD method) :
-	  http_request(host, path, method)
+http_req_base::http_req_base(const http_request::ops &ops, const std::string &host, const std::string &path, HTTP_METHOD method) :
+	http_request(ops, host, path, method)
 	, timestamp_(timestamp_str_ms())
 { }
-
-http_req_base::http_req_base(const http_req_base &rhs) :
-	  http_request(rhs)
-{
-	m_data = rhs.m_data;
-	content_type_ = rhs.content_type_;
-}
 
 http_req_base::~http_req_base()
 {
@@ -431,7 +435,7 @@ http_res http_req_base::perform(int timeout)
 	http_res response;
 
 	try {
-		response = http_request::perform(m_data.get(), &content_type_, timeout);
+		response = http_request::perform(data_.get(), &content_type_, timeout);
 	} catch (...) {
 		throw;
 	}
@@ -442,8 +446,8 @@ http_res http_req_base::perform(int timeout)
 // --------------------------------------------------------------
 // Implemenation of class http_req_get
 // --------------------------------------------------------------
-http_req_get::http_req_get(const std::string &host, const std::string &path) :
-	http_req_base(host, path, HTTP_METHOD_GET)
+http_req_get::http_req_get(const http_request::ops &ops, const std::string &host, const std::string &path) :
+	http_req_base(ops, host, path, HTTP_METHOD_GET)
 {
 
 }
@@ -456,10 +460,10 @@ http_req_get::~http_req_get()
 // --------------------------------------------------------------
 // Implemenation of class http_req_post
 // --------------------------------------------------------------
-http_req_post::http_req_post(const std::string &host, const std::string &path, const std::string &data) :
-	http_req_base(host, path, HTTP_METHOD_POST)
+http_req_post::http_req_post(const http_request::ops &ops, const std::string &host, const std::string &path, const std::string &data) :
+	http_req_base(ops, host, path, HTTP_METHOD_POST)
 {
-	m_data = std::make_shared<std::string>(data);
+	data_ = std::make_shared<std::string>(data);
 }
 
 http_req_post::~http_req_post()
@@ -470,10 +474,10 @@ http_req_post::~http_req_post()
 // --------------------------------------------------------------
 // Implemenation of class http_req_put
 // --------------------------------------------------------------
-http_req_put::http_req_put(const std::string &host, const std::string &path, const std::string &data) :
-	http_req_base(host, path, HTTP_METHOD_PUT)
+http_req_put::http_req_put(const http_request::ops &ops, const std::string &host, const std::string &path, const std::string &data) :
+	http_req_base(ops, host, path, HTTP_METHOD_PUT)
 {
-	m_data = std::make_shared<std::string>(data);
+	data_ = std::make_shared<std::string>(data);
 }
 
 http_req_put::~http_req_put()
@@ -484,15 +488,12 @@ http_req_put::~http_req_put()
 // --------------------------------------------------------------
 // Implemenation of class http_req_del
 // --------------------------------------------------------------
-http_req_del::http_req_del(const std::string &host, const std::string &path) :
-	http_req_base(host, path, HTTP_METHOD_DELETE)
+http_req_del::http_req_del(const http_request::ops &ops, const std::string &host, const std::string &path, const std::string *data) :
+	http_req_base(ops, host, path, HTTP_METHOD_DELETE)
 {
-}
-
-http_req_del::http_req_del(const std::string &host, const std::string &path, const std::string &data) :
-	http_req_base(host, path, HTTP_METHOD_DELETE)
-{
-	m_data = std::make_shared<std::string>(data);
+	if (data_) {
+		data_ = std::make_shared<std::string>(*data);
+	}
 }
 
 http_req_del::~http_req_del()
