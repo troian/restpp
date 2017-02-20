@@ -23,19 +23,18 @@
  */
 #pragma once
 
+#include <curl/curl.h>
+
 #include <string>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <algorithm>
-
 #include <cstring>
-
-#include <curl/curl.h>
+#include <functional>
 
 #include <restpp/http_exception.hpp>
 #include <restpp/http_types.hpp>
-
 #include <types/types.hpp>
 
 /**

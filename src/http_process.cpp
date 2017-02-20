@@ -331,7 +331,7 @@ int http_request::curl_trace(CURL *handle, curl_infotype type, char *data, size_
 			return 0;
 		}
 
-		obj->curl_dump(text, (uint8_t *) data, size);
+		obj->curl_dump(text, reinterpret_cast<uint8_t *>(data), size);
 	}
 
 	return 0;

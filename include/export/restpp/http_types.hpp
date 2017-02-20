@@ -23,6 +23,9 @@
  */
 #pragma once
 
+#include <map>
+#include <string>
+
 #include <types/types.hpp>
 
 /**
