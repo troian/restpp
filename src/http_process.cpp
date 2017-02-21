@@ -340,41 +340,30 @@ int http_request::curl_trace(CURL *handle, curl_infotype type, char *data, size_
 void http_request::curl_dump(const char *text, uint8_t *ptr, size_t size)
 {
 	std::stringstream stream;
-	char nohex = 1;
-	unsigned int width=0xFFF;
+	uint32_t width=0xFFF;
 
-	//if(nohex)
-	/* without the hex output, we can fit more on screen */
-//	width = 0xFFF;
-
-	stream
-		<< text
-		<< ", "
-		<< std::setw(10) << std::to_string(size)
-		<< " bytes "
-		<< "(0x"
-		<< std::hex
-		<< size << ")"
-		<< std::endl;
+	stream << text << ", ";
+	stream << std::setw(10);
+	stream << std::to_string(size) << " bytes (0x" << std::hex << size << ")" << "\n";
 
 	for (size_t i = 0; i < size; i += width) {
 		stream << "   ";
 
-		if (!nohex) {
-			/* hex not disabled, show it */
-			/* show hex to the left */
-			for (size_t c = 0; c < width; c++) {
-				if (i + c < size)
-					stream << std::setw(2) << std::hex << ptr[i + c];
-				else
-					stream << "   ";
-			}
-		}
+//		if (!nohex) {
+//			/* hex not disabled, show it */
+//			/* show hex to the left */
+//			for (size_t c = 0; c < width; c++) {
+//				if (i + c < size)
+//					stream << std::setw(2) << std::hex << ptr[i + c];
+//				else
+//					stream << "   ";
+//			}
+//		}
 
 		/* show data on the right */
 		for(size_t c = 0; (c < width) && (i + c < size); c++) {
 			/* check for 0D0A; if found, skip past and start a new line of output */
-			if(nohex && (i + c + 1 < size) && ptr[i + c] == 0x0D && ptr[i + c + 1] == 0x0A) {
+			if((i + c + 1 < size) && ptr[i + c] == 0x0D && ptr[i + c + 1] == 0x0A) {
 				i += (c + 2 - width);
 				break;
 			}
@@ -384,12 +373,12 @@ void http_request::curl_dump(const char *text, uint8_t *ptr, size_t size)
 			stream << ch;
 
 			/* check again for 0D0A, to avoid an extra \n if it's at width */
-			if(nohex && (i + c + 2 < size) && ptr[i + c + 1] == 0x0D && ptr[i + c + 2] == 0x0A) {
+			if((i + c + 2 < size) && ptr[i + c + 1] == 0x0D && ptr[i + c + 2] == 0x0A) {
 				i += (c + 3 - width);
 				break;
 			}
 		}
-		stream << std::endl;
+		stream << "\n";
 	}
 
 	http_log_(stream);
