@@ -89,6 +89,7 @@ void http_request::init_curl()
 		break;
 	case HTTP_METHOD_POST:
 		curl_easy_setopt(curl_, CURLOPT_POST, 1L);
+		curl_easy_setopt(curl_, CURLOPT_POSTREDIR, 1L);
 		break;
 	case HTTP_METHOD_DELETE:
 		curl_easy_setopt(curl_, CURLOPT_CUSTOMREQUEST, "DELETE");
