@@ -29,7 +29,7 @@
 #include <iomanip>
 
 // --------------------------------------------------------------
-// Implemenation of class http_request
+// Implementation of class http_request
 // --------------------------------------------------------------
 http_request::http_request(const http_request::ops &ops, const std::string &host, const std::string &path, HTTP_METHOD method) :
 	  method_(method)
@@ -393,7 +393,7 @@ http_req_base::http_req_base(const http_req_base &rhs) :
 }
 
 // --------------------------------------------------------------
-// Implemenation of class http_req_base
+// Implementation of class http_req_base
 // --------------------------------------------------------------
 http_req_base::http_req_base(const http_request::ops &ops, const std::string &host, const std::string &path, HTTP_METHOD method) :
 	http_request(ops, host, path, method)
@@ -419,7 +419,7 @@ http_res http_req_base::perform()
 }
 
 // --------------------------------------------------------------
-// Implemenation of class http_req_get
+// Implementation of class http_req_get
 // --------------------------------------------------------------
 http_req_get::http_req_get(const http_request::ops &ops, const std::string &host, const std::string &path) :
 	http_req_base(ops, host, path, HTTP_METHOD_GET)
@@ -433,7 +433,7 @@ http_req_get::~http_req_get()
 }
 
 // --------------------------------------------------------------
-// Implemenation of class http_req_post
+// Implementation of class http_req_post
 // --------------------------------------------------------------
 http_req_post::http_req_post(const http_request::ops &ops, const std::string &host, const std::string &path, const std::string &data) :
 	http_req_base(ops, host, path, HTTP_METHOD_POST)
@@ -447,7 +447,7 @@ http_req_post::~http_req_post()
 }
 
 // --------------------------------------------------------------
-// Implemenation of class http_req_put
+// Implementation of class http_req_put
 // --------------------------------------------------------------
 http_req_put::http_req_put(const http_request::ops &ops, const std::string &host, const std::string &path, const std::string &data) :
 	http_req_base(ops, host, path, HTTP_METHOD_PUT)
@@ -461,7 +461,7 @@ http_req_put::~http_req_put()
 }
 
 // --------------------------------------------------------------
-// Implemenation of class http_req_del
+// Implementation of class http_req_del
 // --------------------------------------------------------------
 http_req_del::http_req_del(const http_request::ops &ops, const std::string &host, const std::string &path, const std::string *data) :
 	http_req_base(ops, host, path, HTTP_METHOD_DELETE)

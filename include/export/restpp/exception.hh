@@ -21,29 +21,55 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#pragma once
 
-#include <restpp/http_exception.hpp>
+#include <stdexcept>
+#include <exception>
+#include <string>
 
-// --------------------------------------------------------------
-// Implementation of class http_base_exception
-// --------------------------------------------------------------
-http_base_exception::~http_base_exception() throw()
-{
+namespace restpp {
 
-}
+/**
+ * \class  http_exception
+ *
+ * \brief
+ */
+class http_base_exception {
+public:
+	virtual ~http_base_exception() = default;
 
-// --------------------------------------------------------------
-// Implementation of class http_req_failure
-// --------------------------------------------------------------
-http_exception::http_exception(const std::string &what) :
-	  http_base_exception()
-	, runtime_error(what)
-{ }
+	virtual const std::exception &base() const = 0;
+};
 
-// --------------------------------------------------------------
-// Implementation of class http_req_failure
-// --------------------------------------------------------------
-http_req_failure::http_req_failure(const std::string &what, int err) :
-	  http_exception(what)
-	, m_err(err)
-{ }
+/**
+ * \class  http_req_failure
+ *
+ * \brief
+ */
+class http_exception : public http_base_exception, public std::runtime_error {
+	const std::exception &base() const override { return *this; }
+
+public:
+	explicit http_exception(const std::string &what);
+};
+
+/**
+ * \class  http_req_failure
+ *
+ * \brief
+ */
+class http_req_failure : public http_exception {
+	const std::exception &base() const override { return *this; }
+
+public:
+	explicit http_req_failure(const std::string &what, int err = 0);
+
+	int error() {
+		return _err;
+	}
+
+private:
+	int _err;
+};
+
+} // namespace restpp

@@ -22,28 +22,24 @@
  * SOFTWARE.
  */
 
-#include <restpp/http_exception.hpp>
+#include <restpp/exception.hh>
 
-// --------------------------------------------------------------
-// Implementation of class http_base_exception
-// --------------------------------------------------------------
-http_base_exception::~http_base_exception() throw()
-{
-
-}
+namespace restpp {
 
 // --------------------------------------------------------------
 // Implementation of class http_req_failure
 // --------------------------------------------------------------
-http_exception::http_exception(const std::string &what) :
-	  http_base_exception()
+http_exception::http_exception(const std::string &what)
+	: http_base_exception()
 	, runtime_error(what)
-{ }
+{}
 
 // --------------------------------------------------------------
 // Implementation of class http_req_failure
 // --------------------------------------------------------------
-http_req_failure::http_req_failure(const std::string &what, int err) :
-	  http_exception(what)
-	, m_err(err)
-{ }
+http_req_failure::http_req_failure(const std::string &what, int err)
+	: http_exception(what)
+	, _err(err)
+{}
+
+} // namespace restpp

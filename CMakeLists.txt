@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.2)
 
-project(restpp LANGUAGES C CXX)
+project(restpp LANGUAGES CXX)
 
-include(CheckCSourceCompiles)
-include(CheckCCompilerFlag)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LibCURL REQUIRED libcurl)
+
 include(CheckCXXSourceCompiles)
 include(CheckCXXSymbolExists)
 include(CheckCXXCompilerFlag)
@@ -12,43 +13,36 @@ include(CheckTypeSize)
 include(CheckIncludeFiles)
 include(CheckIncludeFileCXX)
 
-check_include_file_cxx(iostream HAVE_IOSTREAM)
-check_include_file_cxx(memory HAVE_MEMORY)
+check_include_file_cxx(iostream   HAVE_IOSTREAM)
+check_include_file_cxx(memory     HAVE_MEMORY)
 check_include_file_cxx(functional HAVE_FUNCTIONAL)
-check_include_file_cxx(string HAVE_STRING)
-check_include_file_cxx(atomic HAVE_ATOMIC)
-check_include_file_cxx(mutex HAVE_MUTEX)
-check_include_file_cxx(exception HAVE_EXCEPTION)
-check_include_file_cxx(stdexcept HAVE_STDEXCEPT)
+check_include_file_cxx(string     HAVE_STRING)
+check_include_file_cxx(atomic     HAVE_ATOMIC)
+check_include_file_cxx(mutex      HAVE_MUTEX)
+check_include_file_cxx(exception  HAVE_EXCEPTION)
+check_include_file_cxx(stdexcept  HAVE_STDEXCEPT)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++2a")
 
-set(EXPORT_INCLUDES
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/export
+add_library(
+	${PROJECT_NAME}
+	include/export/restpp/exception.hh
+	include/export/restpp/process.hh
+	include/export/restpp/types.hh
+
+	src/exception.cpp
+	src/process.cpp
 )
-
-set(LIB_SOURCES
-    src/http_process.cpp
-    src/http_exception.cpp
-    src/types.cpp
-
-	${EXPORT_INCLUDES}/restpp/http_process.hpp
-	${EXPORT_INCLUDES}/restpp/http_exception.hpp
-	${EXPORT_INCLUDES}/restpp/http_types.hpp
-)
-
-add_library(${PROJECT_NAME} STATIC ${LIB_SOURCES})
-
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(LibCURL REQUIRED libcurl)
 
 target_include_directories(
 	${PROJECT_NAME}
 	PUBLIC
-	${EXPORT_INCLUDES}
+		include/export
 )
 
-target_link_libraries(${PROJECT_NAME}
-	curl
-	typespp
+target_link_libraries(
+	${PROJECT_NAME}
+	PUBLIC
+		libcurl.a
+		gssapi_krb5
 )
