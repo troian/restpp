@@ -51,15 +51,15 @@ http_request::http_request(const http_request::ops &ops, const std::string &host
 	}
 }
 
-http_request::http_request(const http_request &rhs) {
-	_uri           = rhs._uri;
-	_method        = rhs._method;
-	_header_params = rhs._header_params;
-	_query_params  = rhs._query_params;
-	_last_request  = rhs._last_request;
-	_upload_obj    = rhs._upload_obj;
-	_http_log      = rhs._http_log;
-
+http_request::http_request(const http_request &rhs)
+	: _uri          (rhs._uri)
+	, _method       (rhs._method)
+	, _header_params(rhs._header_params)
+	, _query_params (rhs._query_params)
+	, _last_request (rhs._last_request)
+	, _upload_obj   (rhs._upload_obj)
+	, _http_log     (rhs._http_log)
+{
 	try {
 		init_curl();
 	} catch (...) {
